@@ -9,14 +9,17 @@ int maxrow = sizeof(matrix)/sizeof(matrix[0]),
 void printMatrix()
 {
   int row, col;
+  printf("------------------\n");
   for(row = 0; row < maxrow; row++)
   {
+    printf("|");
     for(col = 0; col < maxcol; col++)
     {
       printf("%d ",matrix[row][col]);
     }
-    printf("\n");
+    printf("|\n");
   }
+  printf("\n------------------\n");
 }
 
 void sectionSequentielle(int k)
@@ -64,7 +67,7 @@ void sectionParallele(int k,int rank, int size)
         {
           matrix[row][col] = matrix[row][col] + (row + col) * k;
         }
-        currentProcessor = (currentProcessor >= size) ? 0 : currentProcessor+1;
+        currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
       }
     }
   }
@@ -87,13 +90,15 @@ void setInitialVal(int value)
 
 int main (int argc, char* argv[])
 {
-  int rank, size, buff, receive;
+  int rank, size;
  
  // This will return an error and the MPI_COOM_WORLD will be instantiated
   MPI_Init (&argc, &argv);      /* starts MPI */
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);        /* get current process id */
   MPI_Comm_size (MPI_COMM_WORLD, &size);        /* get number of processes */
   operation = atoi(argv[1]);
+
+  MPI_Bcast(&matrix[0][0], maxrow*maxcol, MPI_INT, 0, MPI_COMM_WORLD);
 
   setInitialVal(atoi(argv[2]));
   int alteration;
@@ -110,8 +115,12 @@ int main (int argc, char* argv[])
     for(alteration = 1;alteration < atoi(argv[3]); alteration++)
     {
       sectionParallele(alteration, rank, size);
-      printMatrix();
+      
     }
+  }
+  if(rank == 1)
+  {
+    printMatrix();
   }
   //printf("The arg is %d\n", operation);
   MPI_Finalize();
