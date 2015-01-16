@@ -45,7 +45,7 @@ void sectionSequentielle(int k)
   }
 }
 
-void sectionParallele(int k) 
+void sectionParallele(int k,int rank, int size) 
 {
   int currentProcessor = 0;
   int row, col;
@@ -60,13 +60,15 @@ void sectionParallele(int k)
     {
       for(col = 0; col < maxcol; col++)
       {
-        matrix[row][col] = matrix[row][col] + (row + col) * k;
-        currentProcessor = (currentProcessor >= 24) ? 0 : currentProcessor++;
+        if(currentProcessor == rank)
+        {
+          matrix[row][col] = matrix[row][col] + (row + col) * k;
+        }
+        currentProcessor = (currentProcessor >= size) ? 0 : currentProcessor+1;
       }
     }
   }
   //Second operation
-  printMatrix();
 
 }
 
@@ -94,11 +96,10 @@ int main (int argc, char* argv[])
   operation = atoi(argv[1]);
 
   setInitialVal(atoi(argv[2]));
-
+  int alteration;
   if(size == 1)
   {
-    int alteration = 1; 
-    for(;alteration < atoi(argv[3]); alteration++)
+    for(alteration = 1;alteration < atoi(argv[3]); alteration++)
     {
       sectionSequentielle(alteration);
       printMatrix();
@@ -106,7 +107,11 @@ int main (int argc, char* argv[])
   }
   else
   {
-    sectionParallele(1);
+    for(alteration = 1;alteration < atoi(argv[3]); alteration++)
+    {
+      sectionParallele(alteration, rank, size);
+      printMatrix();
+    }
   }
   //printf("The arg is %d\n", operation);
   MPI_Finalize();
