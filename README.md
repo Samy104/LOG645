@@ -1,7 +1,7 @@
 # README #
-HAI 1.2
-VISIBLE "J00 HAEV AN REDME!!11ONE:)...:)SO RAED MEH!!11"
-KTHXBYE
+   HAI 1.2
+       VISIBLE "J00 HAEV AN REDME!!11ONE:)...:)SO RAED MEH!!11"
+   KTHXBYE
 
 This README would normally document whatever steps are necessary to get your application up and running.
 
