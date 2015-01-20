@@ -3,8 +3,11 @@
 #include <stdlib.h>
 int matrix[8][8] = {{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3}};
 int operation = 1;
+int initValue;
 int maxrow = sizeof(matrix)/sizeof(matrix[0]),
     maxcol = sizeof(matrix[0])/sizeof(int);
+MPI_Win win;
+int **data;
 
 void printMatrix()
 {
@@ -52,9 +55,8 @@ void sectionParallele(int k,int rank, int size)
 {
   int currentProcessor = 0;
   int row, col;
-  // Create a communcation per pixel
 
-  // Attach three processes
+
 
   //First operation
   if(operation == 1)
@@ -65,7 +67,10 @@ void sectionParallele(int k,int rank, int size)
       {
         if(currentProcessor == rank)
         {
-          matrix[row][col] = matrix[row][col] + (row + col) * k;
+          //int retrieved = MPI_Get();
+
+          int val = initValue + (row + col) * k;
+
         }
         currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
       }
@@ -78,6 +83,7 @@ void sectionParallele(int k,int rank, int size)
 void setInitialVal(int value)
 {
   int row, col;
+  initValue = value;
 
   for(row = 0; row < maxrow; row++)
   {
@@ -104,6 +110,7 @@ int main (int argc, char* argv[])
   int alteration;
   if(size == 1)
   {
+    // Execution du séquentiel
     for(alteration = 1;alteration < atoi(argv[3]); alteration++)
     {
       sectionSequentielle(alteration);
@@ -111,18 +118,32 @@ int main (int argc, char* argv[])
     } 
   }
   else
-  {
+  { 
+    // Execution du parallel
+    if(rank = 0)
+    {
+      MPI_Alloc_mem(sizeof(matrix) * sizeof(int), MPI_INT, &(matrix));
+      MPI_Win_create(data, sizeof(matrix) * sizeof(int), sizeof(int),
+                   MPI_INT, MPI_COMM_WORLD, &win);
+    }
+    else
+    {
+      MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win); 
+    }
+    
     for(alteration = 1;alteration < atoi(argv[3]); alteration++)
     {
       sectionParallele(alteration, rank, size);
-      
+    }
+    //MPI_Barrier(MPI_COMM_WORLD);
+    if(rank == 0)
+    {
+      printMatrix();
     }
   }
-  if(rank == 1)
-  {
-    printMatrix();
-  }
-  //printf("The arg is %d\n", operation);
+
+  //Fin du programme afficher le temps
+
   MPI_Finalize();
   return 0;
 }
