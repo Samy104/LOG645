@@ -1,13 +1,11 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-int matrix[8][8] = {{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3}};
+int **matrix;
 int operation = 1;
-int initValue;
-int maxrow = sizeof(matrix)/sizeof(matrix[0]),
-    maxcol = sizeof(matrix[0])/sizeof(int);
+int maxrow = 8,
+    maxcol = 8;
 MPI_Win win;
-int **data;
 
 void printMatrix()
 {
@@ -25,68 +23,13 @@ void printMatrix()
   printf("\n------------------\n");
 }
 
-void sectionSequentielle(int k)
-{
-  int row, col;
-  //First operation
-  if(operation == 1)
-  {
-    for(row = 0; row < maxrow; row++)
-    {
-      for(col = 0; col < maxcol; col++)
-      {
-        matrix[row][col] = matrix[row][col] + (row + col) * k;
-      }
-    }
-  } //Second operation
-  else
-  {
-    for(row = 0; row < maxrow; row++)
-    {
-      for(col = 0; col < maxcol; col++)
-      { 
-        matrix[row][col] = (col == 0) ? matrix[row][col] + row*k : matrix[row][col] + matrix[row][col-1]*k;
-      }
-    }
-  }
-}
-
-void sectionParallele(int k,int rank, int size) 
-{
-  int currentProcessor = 0;
-  int row, col;
-
-
-
-  //First operation
-  if(operation == 1)
-  {
-    for(row = 0; row < maxrow; row++)
-    {
-      for(col = 0; col < maxcol; col++)
-      {
-        if(currentProcessor == rank)
-        {
-          //int retrieved = MPI_Get();
-
-          int val = initValue + (row + col) * k;
-
-        }
-        currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
-      }
-    }
-  }
-  //Second operation
-
-}
-
 void setInitialVal(int value)
 {
   int row, col;
-  initValue = value;
-
+  matrix = (int**)calloc(maxrow,sizeof(int*));
   for(row = 0; row < maxrow; row++)
   {
+    matrix[row] = (int*)calloc(maxcol,sizeof(int));
     for(col = 0; col < maxcol; col++)
     {
       matrix[row][col] = value;
@@ -104,42 +47,64 @@ int main (int argc, char* argv[])
   MPI_Comm_size (MPI_COMM_WORLD, &size);        /* get number of processes */
   operation = atoi(argv[1]);
 
-  MPI_Bcast(&matrix[0][0], maxrow*maxcol, MPI_INT, 0, MPI_COMM_WORLD);
-
+  //printf("Rank %d",rank);
   setInitialVal(atoi(argv[2]));
+
+  MPI_Bcast(matrix, maxrow*maxcol, MPI_INT, 0, MPI_COMM_WORLD);
   int alteration;
-  if(size == 1)
-  {
-    // Execution du séquentiel
-    for(alteration = 1;alteration < atoi(argv[3]); alteration++)
-    {
-      sectionSequentielle(alteration);
-      printMatrix();
-    } 
+  // Execution du parallel
+  if(rank == 0)
+  { 
+    /*MPI_Alloc_mem(sizeof(matrix) * sizeof(int), MPI_INFO_NULL, matrix);
+    MPI_Win_create(matrix, sizeof(matrix) * sizeof(int), sizeof(int),
+                 MPI_INFO_NULL, MPI_COMM_WORLD, &win);*/
+      MPI_Win_allocate(sizeof(matrix)*sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, matrix, &win);
   }
   else
-  { 
-    // Execution du parallel
-    if(rank = 0)
+  {
+    MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win); 
+  }
+  
+  if(rank == 1)
+  {
+    int wut = 999;
+    MPI_Put(&(matrix[0][0]), 1, MPI_INT, 0, rank, 1, MPI_INT, win);
+  }
+
+  for(alteration = 1;alteration < atoi(argv[3]); alteration++)
+  {
+    int currentProcessor = 0;
+    int row, col;
+
+    //First operation
+    if(operation == 1)
     {
-      MPI_Alloc_mem(sizeof(matrix) * sizeof(int), MPI_INT, &(matrix));
-      MPI_Win_create(data, sizeof(matrix) * sizeof(int), sizeof(int),
-                   MPI_INT, MPI_COMM_WORLD, &win);
-    }
-    else
+      for(row = 0; row < maxrow; row++)
+      {
+        for(col = 0; col < maxcol; col++)
+        {
+          if(currentProcessor == rank)
+          {
+            //int retrieved = MPI_Get();
+
+            int val = matrix[row][col] + (row + col) * alteration;
+            matrix[row][col] = val; 
+          }
+          currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
+        }
+      }
+    } 
+    else //Second operation
     {
-      MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win); 
+      //Suck mah balls mr garisson
     }
     
-    for(alteration = 1;alteration < atoi(argv[3]); alteration++)
-    {
-      sectionParallele(alteration, rank, size);
-    }
-    //MPI_Barrier(MPI_COMM_WORLD);
-    if(rank == 0)
-    {
-      printMatrix();
-    }
+
+  }
+  if(rank == 0)
+  {
+
+    printMatrix();
   }
 
   //Fin du programme afficher le temps
