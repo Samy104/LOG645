@@ -60,8 +60,8 @@ int main (int argc, char* argv[])
     /*MPI_Alloc_mem(sizeof(matrix) * sizeof(int), MPI_INFO_NULL, matrix);
     MPI_Win_create(matrix, sizeof(matrix) * sizeof(int), sizeof(int),
                  MPI_INFO_NULL, MPI_COMM_WORLD, &win);*/
-      printf("Matrix size of %d\n",(int)(sizeof(matrix[0])*sizeof(matrix)));
-      MPI_Win_allocate(sizeof(matrix)*sizeof(matrix), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, matrix, &win);
+      printf("Matrix size of %d\n",(int)(maxrow));
+      MPI_Win_allocate(maxcol*maxrow, sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, matrix, &win);
       
   }
   else
@@ -71,7 +71,6 @@ int main (int argc, char* argv[])
   }
   
   MPI_Win_fence(MPI_MODE_NOPRECEDE,win);
-
   // Debut des alterations
   for(alteration = 1;alteration < atoi(argv[3]); alteration++)
   {
@@ -85,16 +84,21 @@ int main (int argc, char* argv[])
       {
         for(col = 0; col < maxcol; col++)
         {
-          if(currentProcessor == rank)
-          {
-            //int retrieved = MPI_Get();
 
-            int val = matrix[row][col] + (row + col) * alteration;
-            matrix[row][col] = val;
-             
-            //MPI_Put(&(matrix[row][col]), 1, MPI_INT, 0, col+maxcol*row, 1, MPI_INT, win);
-            
+          if(currentProcessor == rank && rank == 0)
+          {
+            matrix[row][col] = matrix[row][col] + (row + col) * alteration;
           }
+          else if(currentProcessor == rank)
+          {
+            //MPI_Get(&(matrix[row][col]), 1, MPI_INT, 0, col+row*sizeof(matrix), 1, MPI_INT, win);
+            matrix[row][col] = matrix[row][col] + (row + col) * alteration;
+            //printf("the mat %d::%d val %d", row,col,matrix[row][col]);
+            MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
+            MPI_Put(&(matrix[row][col]), 1, MPI_INT, 0, col+row*maxcol, 1, MPI_INT, win); 
+            MPI_Win_unlock(0,win);
+          }
+           
           currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
         }
       }
@@ -104,25 +108,12 @@ int main (int argc, char* argv[])
       //Suck mah balls mr garisson
 
     }
-    
+    //MPI_Win_fence(0,win);
 
   }
   
-  if(rank == 1)
-  {
-    int x, y;
-    x = 0;
-    y = 8;
-    //MPI_Get(&(matrix[x][y]), 1, MPI_INT, 0, y+maxcol*x, 1, MPI_INT, win);
-    matrix[x][y] = 999;
-    printf("What is matrix: %d\n",matrix[x][y]);
-    //MPI_Put(7, 1, MPI_INT, 0, rank, 1, MPI_INT, matrix[0][0]);
-    
-    MPI_Put(&(matrix[x][y]), 1, MPI_INT, 0, y+x*sizeof(matrix), 1, MPI_INT, win);
-    
-  }
-  MPI_Win_fence(0,win);
-  MPI_Win_fence(MPI_MODE_NOSUCCEED,win);
+  //MPI_Win_fence(0,win);
+  //MPI_Win_fence(MPI_MODE_NOSUCCEED,win);
 
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == 0)
@@ -132,7 +123,7 @@ int main (int argc, char* argv[])
   }
 
   //Fin du programme afficher le temps
-  MPI_Win_free(&win);
+  //MPI_Win_free(&win);
   MPI_Free_mem(matrix);
   MPI_Finalize();
   return 0;
