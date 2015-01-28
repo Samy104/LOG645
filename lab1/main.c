@@ -39,7 +39,8 @@ void setInitialVal(int value)
 
 int main (int argc, char* argv[])
 {
-  int rank, size;
+  int rank, size, alteration;
+  double timestart, timeend;
 
  // This will return an error and the MPI_COOM_WORLD will be instantiated
   MPI_Init (&argc, &argv);      /* starts MPI */
@@ -50,19 +51,11 @@ int main (int argc, char* argv[])
   //printf("Rank %d",rank);
   setInitialVal(atoi(argv[2]));
 
-  //MPI_Bcast(matrix, maxrow*maxcol, MPI_INT, 0, MPI_COMM_WORLD);
-  int alteration;
-  // Execution du parallel
-  
   // Creation de la fenetre
   if(rank == 0)
   { 
-    /*MPI_Alloc_mem(sizeof(matrix) * sizeof(int), MPI_INFO_NULL, matrix);
-    MPI_Win_create(matrix, sizeof(matrix) * sizeof(int), sizeof(int),
-                 MPI_INFO_NULL, MPI_COMM_WORLD, &win);*/
-      printf("Matrix size of %d\n",(int)(maxrow));
+      printf("Matrix size of %d\n",(int)(maxcol*maxrow));
       MPI_Win_allocate(maxcol*maxrow, sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, matrix, &win);
-      
   }
   else
   {
@@ -72,6 +65,7 @@ int main (int argc, char* argv[])
   
   MPI_Win_fence(MPI_MODE_NOPRECEDE,win);
   // Debut des alterations
+  timestart = MPI_Wtime();
   for(alteration = 1;alteration < atoi(argv[3]); alteration++)
   {
     int currentProcessor = 0;
@@ -111,14 +105,11 @@ int main (int argc, char* argv[])
     //MPI_Win_fence(0,win);
 
   }
-  
-  //MPI_Win_fence(0,win);
-  //MPI_Win_fence(MPI_MODE_NOSUCCEED,win);
-
+  timeend = MPI_Wtime();
+  printf("Process %d finished the work in %f ms\n", rank, (timeend-timestart)*1000);
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == 0)
   {
-    //MPI_Get(&(matrix[1][0]), 0, MPI_INT, 1, 0, 0, MPI_INT, win);
     printMatrix();
   }
 
