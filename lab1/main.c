@@ -78,21 +78,18 @@ int main (int argc, char* argv[])
       {
         for(col = 0; col < maxcol; col++)
         {
-
           if(currentProcessor == rank && rank == 0)
           {
             matrix[row][col] = matrix[row][col] + (row + col) * alteration;
           }
           else if(currentProcessor == rank)
           {
-            //MPI_Get(&(matrix[row][col]), 1, MPI_INT, 0, col+row*sizeof(matrix), 1, MPI_INT, win);
             matrix[row][col] = matrix[row][col] + (row + col) * alteration;
-            //printf("the mat %d::%d val %d", row,col,matrix[row][col]);
             MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
             MPI_Put(&(matrix[row][col]), 1, MPI_INT, 0, col+row*maxcol, 1, MPI_INT, win); 
             MPI_Win_unlock(0,win);
           }
-           
+          
           currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
         }
       }
@@ -100,6 +97,24 @@ int main (int argc, char* argv[])
     else //Second operation
     {
       //Suck mah balls mr garisson
+      for(row = 0; row < maxrow; row++)
+      {
+        for(col = 0; col < maxcol; col++)
+        {
+          if(currentProcessor == rank && rank == 0)
+          {
+            matrix[row][col] = matrix[row][col] + (row + col) * alteration;
+          }
+          else if(currentProcessor == rank)
+          {
+            matrix[row][col] = (col == 0) ? matrix[row][col] + row*alteration : matrix[row][col] + matrix[row][col-1]*alteration;
+            MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
+            MPI_Put(&(matrix[row][col]), 1, MPI_INT, 0, col+row*maxcol, 1, MPI_INT, win); 
+            MPI_Win_unlock(0,win);
+          }
+        }
+        currentProcessor = (currentProcessor < size-1) ? currentProcessor+1 : 0;
+      }
 
     }
     //MPI_Win_fence(0,win);
