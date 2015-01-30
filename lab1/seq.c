@@ -40,6 +40,8 @@ int main (int argc, char* argv[])
 	operation = atoi(argv[1]);
 	setInitialVal(atoi(argv[2]));
   	int alteration;
+  	clock_t timestart, timeend;
+  	timestart = clock();
 	// Execution du séquentiel
     for(alteration = 1;alteration < atoi(argv[3]); alteration++)
     {
@@ -67,6 +69,8 @@ int main (int argc, char* argv[])
 		}
       
     } 
+    timeend = clock();
+    printf("Sequential process finished the work in %f ms\n", (((float)timeend-(float)timestart)/ 1000000.0F)*1000);
     printMatrix();
 
     return 0;
