@@ -53,6 +53,7 @@ int main (int argc, char* argv[])
 			{
 				for(col = 0; col < maxcol; col++)
 				{
+					sleep(1);
 					matrix[row][col] = matrix[row][col] + (row + col) * alteration;
 				}
 			}
