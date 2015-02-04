@@ -1,0 +1,1 @@
+mpirun -np 8 ./par $1 $2 $3

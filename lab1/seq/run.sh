@@ -1,0 +1,1 @@
+mpirun -np 1 ./seq $1 $2 $3

@@ -1,6 +1,8 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 int matrix[8][8] = {{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3},{3,3,3,3,3,3,3,3}};
 int operation = 1;
 int maxrow = sizeof(matrix)/sizeof(matrix[0]),
@@ -19,7 +21,7 @@ void printMatrix()
     }
     printf("|\n");
   }
-  printf("\n------------------\n");
+  printf("------------------\n");
 }
 
 void setInitialVal(int value)
@@ -53,7 +55,7 @@ int main (int argc, char* argv[])
 			{
 				for(col = 0; col < maxcol; col++)
 				{
-					sleep(1);
+          usleep(1000);
 					matrix[row][col] = matrix[row][col] + (row + col) * alteration;
 				}
 			}
@@ -64,6 +66,7 @@ int main (int argc, char* argv[])
 			{
 				for(col = 0; col < maxcol; col++)
 				{ 
+          usleep(1000);
 					matrix[row][col] = (col == 0) ? matrix[row][col] + row*alteration : matrix[row][col] + matrix[row][col-1]*alteration;
 				}
 			}

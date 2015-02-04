@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 int *matrix;
 int operation = 1;
 int maxrow = 8,
@@ -75,6 +76,7 @@ int main (int argc, char* argv[])
       {
         for(col = 0; col < maxcol; col++)
         {
+          usleep(1000);
           if(currentProcessor == rank && rank == 0)
           {
             matrix[row*maxcol +col] = matrix[row*maxcol +col] + (row + col) * alteration;
@@ -97,6 +99,7 @@ int main (int argc, char* argv[])
       {
         for(col = 0; col < maxcol; col++)
         {
+          usleep(1000);
           if(currentProcessor == rank && rank == 0)
           {
             matrix[row*maxcol +col] = (col == 0) ? matrix[row*maxcol +col] + row*alteration : matrix[row*maxcol +col] + matrix[row*maxcol +col-1]*alteration;
@@ -121,7 +124,7 @@ int main (int argc, char* argv[])
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == 0)
   {
-    sleep(1);
+    //sleep(1);
     printMatrix();
   }
 
