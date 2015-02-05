@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 double *matrix;
 int operation = 1;
 int maxrow = 8,

@@ -3,6 +3,8 @@
 #include <string.h>
 #include <omp.h>
 
+double matrix[10][10];
+
 int main (int argc, char* argv[])
 {
 	int thread_count = strtol(argv[1], NULL, 10);
