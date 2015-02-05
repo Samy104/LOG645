@@ -1,1 +1,1 @@
-mpirun -np 8 ./par $1 $2 $3
+mpirun -hostfile hostfile -np 4 ./par $1 $2 $3

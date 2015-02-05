@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-int *matrix;
+double *matrix;
 int operation = 1;
 int maxrow = 8,
     maxcol = 8;
@@ -17,7 +17,7 @@ void printMatrix()
     printf("|");
     for(col = 0; col < maxcol; col++)
     {
-      printf("%d\t",matrix[row*maxcol +col]);
+      printf("%.0f\t",matrix[row*maxcol +col]);
     }
     printf("|\n");
   }
@@ -27,12 +27,12 @@ void printMatrix()
 void setInitialVal(int value)
 {
   int row, col;
-  matrix = (int*)calloc(maxrow*maxcol,sizeof(int));
+  matrix = (double*)calloc(maxrow*maxcol,sizeof(double));
   for(row = 0; row < maxrow; row++)
   {
     for(col = 0; col < maxcol; col++)
     {
-      matrix[row*maxcol +col] = value;
+      matrix[row*maxcol +col] = (double)value;
     }
   }
 }
@@ -53,7 +53,7 @@ int main (int argc, char* argv[])
   if(rank == 0)
   { 
       printf("Matrix size of %d\n",(int)(maxcol*maxrow));
-      MPI_Win_create(matrix,maxcol*maxrow,sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+      MPI_Win_create(matrix,maxcol*maxrow,sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
   }
   else
   {
@@ -85,7 +85,7 @@ int main (int argc, char* argv[])
           {
             matrix[row*maxcol +col] = matrix[row*maxcol +col] + (row + col) * alteration;
             MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
-            MPI_Put(&(matrix[row*maxcol +col]), 1, MPI_INT, 0, col+row*maxcol, 1, MPI_INT, win); 
+            MPI_Put(&(matrix[row*maxcol +col]), 1, MPI_DOUBLE, 0, col+row*maxcol, 1, MPI_DOUBLE, win); 
             MPI_Win_unlock(0,win);
           }
           
@@ -108,7 +108,7 @@ int main (int argc, char* argv[])
           {
             matrix[row*maxcol +col] = (col == 0) ? matrix[row*maxcol +col] + row*alteration : matrix[row*maxcol +col] + matrix[row*maxcol +col-1]*alteration;
             MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
-            MPI_Put(&(matrix[row*maxcol +col]), 1, MPI_INT, 0, col+row*maxcol, 1, MPI_INT, win); 
+            MPI_Put(&(matrix[row*maxcol +col]), 1, MPI_DOUBLE, 0, col+row*maxcol, 1, MPI_DOUBLE, win); 
             MPI_Win_unlock(0,win);
           }
         }
@@ -129,6 +129,7 @@ int main (int argc, char* argv[])
   }
 
   MPI_Free_mem(matrix);
+  MPI_Win_free(&win);
   MPI_Finalize();
   return 0;
 }
