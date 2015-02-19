@@ -8,7 +8,7 @@
 double *matrix, *newMatrix;
 int maxrow, maxcol, deltat;
 double h, td;
-MPI_Win win;
+MPI_Win win, newwin;
 
 void spinWait(int milliseconds) 
 { 
@@ -35,7 +35,7 @@ void printMatrix()
     printf("|");
     for(col = 0; col < maxcol; col++)
     {
-      printf("%.3f\t",matrix[row*maxcol +col]);
+      printf("%.2f\t",matrix[row*maxcol +col]);
     }
     printf("|\n");
   }
@@ -82,13 +82,27 @@ int main (int argc, char* argv[])
 	{ 
 		printf("Matrix size of %d\n",(int)(maxcol*maxrow));
 	  	MPI_Win_create(matrix,maxcol*maxrow,sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+	  	MPI_Win_create(newMatrix,maxcol*maxrow,sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &newwin);
 	}
 	else
 	{
 		MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+		MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &newwin);
 		MPI_Win_fence(0, win); 
 	}
 	MPI_Win_fence(MPI_MODE_NOPRECEDE,win);
+
+	// Declare and calculate variables for process separation
+	int newCurrRow, newCurrCol, newMaxRow, newMaxCol, alteration, innerMatrixSize;
+	innerMatrixSize = (maxrow-2)*(maxcol-2);
+	double calculatedMax = innerMatrixSize/size;
+	newCurrRow = (rank) *(calculatedMax / (maxcol-2));
+	newCurrCol = rank*calculatedMax-newCurrRow*(maxcol-2)+1;
+	newMaxRow = (rank+1) *(calculatedMax / (maxcol-2));
+	newMaxCol = (rank+1) *calculatedMax-newMaxRow*(maxcol-2)+1;
+	newCurrRow++;
+	newMaxRow++;
+	printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
 
 	// Start time
 	double timeStart, timeEnd, Texec;
@@ -96,27 +110,61 @@ int main (int argc, char* argv[])
 	gettimeofday (&tp, NULL); // Debut du chronometre
 	timeStart = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
 
-	// Start the alteration
+	/*
+		We will have two windows for each matrix. The first will be for the MPI_Get(old) and the second MPI_Put(new).
+		Once the calculations for a single frame is done we insert a barrier and copy the informations of the newMatrix to the old in RANK 0.
+		Refresh until done the alterations
+	*/
+	
 	double tdh2 = (double)(td/(h*h));
-	for(row = 1; row < maxrow-1; row++)
+	// Start the alteration for RANK == 0
+	if(rank == 0)
 	{
-		prevRow = (row-1)*maxcol;
-		currentRow = row*maxcol;
-		nextRow = (row+1)*maxcol;
-		for(col = 1; col < maxcol-1; col++)
+		for(alteration = 0; alteration < deltat; alteration++)
 		{
-			newMatrix[currentRow+col] = (1.0-tdh2/4.0)*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+			for(row = newCurrRow; row < newMaxRow-1; row++)
+			{
+				prevRow = (row-1)*maxcol;
+				currentRow = row*maxcol;
+				nextRow = (row+1)*maxcol;
+				for(col = newCurrCol; col < newMaxCol; col++)
+				{
+					//spinWait(50);
+					newMatrix[currentRow+col] = (1.0-tdh2*0.25)*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+				}
+			}
+			MPI_Barrier(MPI_COMM_WORLD);
+			memcpy(matrix, newMatrix, matrixSize * sizeof(double));
+			MPI_Barrier(MPI_COMM_WORLD);
 		}
 	}
-	memcpy(matrix, newMatrix, matrixSize * sizeof(double));
+	else
+	{	// Start the alteration for RANK != 0
+		for(alteration = 0; alteration < deltat; alteration++)
+		{
+			for(row = newCurrRow; row < newMaxRow-1; row++)
+			{
+				prevRow = (row-1)*maxcol;
+				currentRow = row*maxcol;
+				nextRow = (row+1)*maxcol;
+				for(col = newCurrCol; col < newMaxCol-1; col++)
+				{
+					//spinWait(50);
+					newMatrix[currentRow+col] = (1.0-tdh2*0.25)*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+					//MPI_Put(&(newMatrix[currentRow +col]), 1, MPI_DOUBLE, 0, col+row*maxcol, 1, MPI_DOUBLE, newwin);
+				}
+			}
+			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(MPI_COMM_WORLD);
+		}
+	}
 
-	//spinWait(50);
 
 	//End time
 	gettimeofday (&tp, NULL); // Fin du chronometre
 	timeEnd = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
 	Texec = timeEnd - timeStart; //Temps d'execution en secondes
-	//printf("Time Executed : %f\n",Texec);
+	printf("Time Executed : %f\n",Texec);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if(rank == 0)
 	{

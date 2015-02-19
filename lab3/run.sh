@@ -1,1 +1,1 @@
-mpirun -np $4 ./main $1 $2 $3 $5 $6
+mpirun -np $6 ./main $1 $2 $3 $4 $5
