@@ -5,9 +5,9 @@
 #include <mpi.h>
 #include <sys/time.h>
 
-float *matrix, *newMatrix;
+double *matrix, *newMatrix;
 int maxrow, maxcol, deltat;
-float h, td;
+double h, td;
 MPI_Win win;
 
 void spinWait(int milliseconds) 
@@ -35,7 +35,7 @@ void printMatrix()
     printf("|");
     for(col = 0; col < maxcol; col++)
     {
-      printf("%.0f ",matrix[row*maxcol +col]);
+      printf("%.3f\t",matrix[row*maxcol +col]);
     }
     printf("|\n");
   }
@@ -60,12 +60,12 @@ int main (int argc, char* argv[])
 	maxrow = atoi(argv[1]);
 	maxcol = atoi(argv[2]);
 	deltat = atoi(argv[3]);
-	td = atoi(argv[4]);
-	h = atoi(argv[5]);
+	td = atof(argv[4]);
+	h = atof(argv[5]);
 	matrixSize = maxrow*maxcol;
 
 	// Initialise the matrix
-	matrix = (float*)calloc(matrixSize,sizeof(float));
+	matrix = (double*)calloc(matrixSize,sizeof(double));
 	for(row = 0; row < maxrow; row++)
 	{
 		currentRow = row*maxcol;
@@ -74,14 +74,14 @@ int main (int argc, char* argv[])
 			matrix[currentRow+col] = row*(maxrow - row-1) * col*(maxcol - col-1);
 		}
 	}
-	newMatrix = (float*)calloc(matrixSize,sizeof(float));
-	memcpy(newMatrix, matrix, matrixSize * sizeof(float));
+	newMatrix = (double*)calloc(matrixSize,sizeof(double));
+	memcpy(newMatrix, matrix, matrixSize * sizeof(double));
 
 	// Create window
 	if(rank == 0)
 	{ 
 		printf("Matrix size of %d\n",(int)(maxcol*maxrow));
-	  	MPI_Win_create(matrix,maxcol*maxrow,sizeof(float), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+	  	MPI_Win_create(matrix,maxcol*maxrow,sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
 	}
 	else
 	{
@@ -91,33 +91,32 @@ int main (int argc, char* argv[])
 	MPI_Win_fence(MPI_MODE_NOPRECEDE,win);
 
 	// Start time
-	float timeStart, timeEnd, Texec;
+	double timeStart, timeEnd, Texec;
 	struct timeval tp;
 	gettimeofday (&tp, NULL); // Debut du chronometre
-	timeStart = (float) (tp.tv_sec) + (float) (tp.tv_usec) / 1e6;
+	timeStart = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
 
 	// Start the alteration
-	float tdh2 = td/(h*h);
-	printf("TD/h2 = %f\n",tdh2);
-	for(row = 0; row < maxrow; row++)
+	double tdh2 = (double)(td/(h*h));
+	for(row = 1; row < maxrow-1; row++)
 	{
 		prevRow = (row-1)*maxcol;
 		currentRow = row*maxcol;
 		nextRow = (row+1)*maxcol;
-		for(col = 0; col < maxcol; col++)
+		for(col = 1; col < maxcol-1; col++)
 		{
-			newMatrix[currentRow+col] =tdh2;//(1.0-tdh2/4.0);//*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+			newMatrix[currentRow+col] = (1.0-tdh2/4.0)*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
 		}
 	}
-	memcpy(matrix, newMatrix, matrixSize * sizeof(float));
+	memcpy(matrix, newMatrix, matrixSize * sizeof(double));
 
 	//spinWait(50);
 
 	//End time
 	gettimeofday (&tp, NULL); // Fin du chronometre
-	timeEnd = (float) (tp.tv_sec) + (float) (tp.tv_usec) / 1e6;
+	timeEnd = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
 	Texec = timeEnd - timeStart; //Temps d'execution en secondes
-	printf("Time Executed : %f\n",Texec);
+	//printf("Time Executed : %f\n",Texec);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if(rank == 0)
 	{
