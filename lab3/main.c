@@ -93,20 +93,29 @@ int main (int argc, char* argv[])
 	MPI_Win_fence(MPI_MODE_NOPRECEDE,newwin);
 
 	// Declare and calculate variables for the separation process
-	int newCurrRow, newCurrCol, newMaxRow, newMaxCol, alteration, innerMatrixSize, surroundingLength, surroundingStart, limitedRow, limitedCol, colminun;
+	int newCurrRow, newCurrCol, newMaxRow, newMaxCol, alteration, innerMatrixSize, 
+	surroundingLength, surroundingStart, 
+	limitedRow, limitedCol, colminun,
+	distribution;
+
+	// Variables réutilisés
 	limitedRow = maxrow-2;
 	limitedCol = maxcol-2;
 	innerMatrixSize = limitedCol*limitedRow;
+	colminun = maxcol-1;
 	double calculatedMax = innerMatrixSize/size;
+	// Calculations des limites
 	newCurrRow = (rank) *(calculatedMax / limitedCol);
 	newCurrCol = rank*calculatedMax-newCurrRow*limitedCol;
 	newMaxRow = (rank+1) *(calculatedMax / limitedCol);
 	newMaxCol = (rank+1) *calculatedMax-newMaxRow*limitedCol;
-	newCurrCol++;
-	newMaxCol++;
-	newCurrRow++;
-	newMaxRow++;
-	colminun = maxcol-1;
+	// Distribution des pixels/elements qui ne sont pas couverts
+	distribution = 1;//+rank/3;//(rank+1)/(size/(innerMatrixSize%size)) + 1;
+	printf("Distribution %d\n",distribution);
+	newCurrCol+= distribution;
+	newMaxCol+= distribution;
+	newCurrRow+= distribution;
+	newMaxRow+= distribution;
 	//printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
 	
 	// Surrounding length and max for the MPI_Get
@@ -114,7 +123,7 @@ int main (int argc, char* argv[])
 	surroundingLength = (newMaxRow-newCurrRow+3)*maxcol;
 
 	// Conversion from row/col to 1D Matrix
-	int startMatrix, endMatrix, elementMatrix, lastElement;
+	int startMatrix, endMatrix, elementMatrix, lastElement, sizeExpand, elementsToPush;
 	startMatrix = newCurrRow*maxcol+newCurrCol;
 	endMatrix = newMaxRow*maxcol+newMaxCol;
 	lastElement = (maxrow-1)*maxcol+maxcol-1;
@@ -122,21 +131,16 @@ int main (int argc, char* argv[])
 	{
 		endMatrix = lastElement;
 	}
-
-	
+	sizeExpand = newMaxRow - newCurrRow;
+	elementsToPush = calculatedMax + sizeExpand*2;
 
 	// Start time
 	double timeStart, timeEnd, Texec;
 	struct timeval tp;
 	gettimeofday (&tp, NULL); // Debut du chronometre
 	timeStart = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
-
-	/*
-		We will have two windows for each matrix. The first will be for the MPI_Get(old) and the second MPI_Put(new).
-		Once the calculations for a single frame is done we insert a barrier and copy the informations of the newMatrix to the old in RANK 0.
-		Refresh until done the alterations
-	*/
 	
+	// Variables for the calculations
 	double tdh2 = (td/(h*h));
 	double invtdh2 = (1.0-tdh2*0.25);
 	// Start the alteration for RANK == 0
@@ -183,8 +187,6 @@ int main (int argc, char* argv[])
 				prevRow = (row-1)*maxcol;
 				currentRow = row*maxcol;
 				nextRow = (row+1)*maxcol;
-				if(rank == 3)
-					printf("Element start: %d\n", elementMatrix);
 				while(col < colminun && elementMatrix <= endMatrix)
 				{
 					//spinWait(50);
@@ -192,13 +194,11 @@ int main (int argc, char* argv[])
 					elementMatrix++;
 					col++;
 				}
-				if(rank == 3)
-					printf("Element end: %d\n", elementMatrix);
 				elementMatrix+=2;
 				col=1;
 			}
 			MPI_Win_lock(MPI_LOCK_SHARED,0,0,newwin);
-			MPI_Put(&(newMatrix[startMatrix]), calculatedMax, MPI_DOUBLE, 0, startMatrix, calculatedMax, MPI_DOUBLE, newwin);
+			MPI_Put(&(newMatrix[startMatrix]), elementsToPush, MPI_DOUBLE, 0, startMatrix, elementsToPush, MPI_DOUBLE, newwin);
 			MPI_Win_unlock(0,newwin);
 			MPI_Barrier(MPI_COMM_WORLD);
 			MPI_Barrier(MPI_COMM_WORLD);
