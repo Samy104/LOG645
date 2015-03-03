@@ -96,7 +96,7 @@ int main (int argc, char* argv[])
 	int newCurrRow, newCurrCol, newMaxRow, newMaxCol, alteration, innerMatrixSize, 
 	surroundingLength, surroundingStart, 
 	limitedRow, limitedCol, colminun,
-	distribution;
+	distribution, isExtended;
 
 	// Variables réutilisés
 	limitedRow = maxrow-2;
@@ -110,13 +110,24 @@ int main (int argc, char* argv[])
 	newMaxRow = (rank+1) *(calculatedMax / limitedCol);
 	newMaxCol = (rank+1) *calculatedMax-newMaxRow*limitedCol;
 	// Distribution des pixels/elements qui ne sont pas couverts
-	distribution = 1;//+rank/3;//(rank+1)/(size/(innerMatrixSize%size)) + 1;
+	distribution = rank/(size/(innerMatrixSize%size)) +1;//(rank+1)/(size/(innerMatrixSize%size)) + 1;
 	printf("Distribution %d\n",distribution);
 	newCurrCol+= distribution;
 	newMaxCol+= distribution;
-	newCurrRow+= distribution;
-	newMaxRow+= distribution;
-	//printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
+	newCurrRow++;
+	newMaxRow++;
+	if(newCurrCol > colminun)
+	{
+		newCurrRow++;
+		newCurrCol = newCurrCol-colminun+1;
+	}
+	if(newMaxCol > colminun)
+	{
+		newMaxRow++;
+		newMaxCol = newMaxCol-colminun+1;
+	}
+	if(rank == 3)
+	printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
 	
 	// Surrounding length and max for the MPI_Get
 	surroundingStart = newCurrRow-1;
@@ -131,8 +142,14 @@ int main (int argc, char* argv[])
 	{
 		endMatrix = lastElement;
 	}
+	// Put variables
 	sizeExpand = newMaxRow - newCurrRow;
-	elementsToPush = calculatedMax + sizeExpand*2;
+	isExtended = (rank/(size/(innerMatrixSize%size)) != (rank+1)/(size/(innerMatrixSize%size))) ? 1 : 0;
+	elementsToPush = calculatedMax + sizeExpand*2 + isExtended;
+
+	// Variables for the calculations
+	double tdh2 = (td/(h*h));
+	double invtdh2 = (1.0-tdh2*0.25);
 
 	// Start time
 	double timeStart, timeEnd, Texec;
@@ -140,9 +157,6 @@ int main (int argc, char* argv[])
 	gettimeofday (&tp, NULL); // Debut du chronometre
 	timeStart = (double) (tp.tv_sec) + (double) (tp.tv_usec) / 1e6;
 	
-	// Variables for the calculations
-	double tdh2 = (td/(h*h));
-	double invtdh2 = (1.0-tdh2*0.25);
 	// Start the alteration for RANK == 0
 	if(rank == 0)
 	{
