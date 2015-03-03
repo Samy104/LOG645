@@ -110,8 +110,7 @@ int main (int argc, char* argv[])
 	newMaxRow = (rank+1) *(calculatedMax / limitedCol);
 	newMaxCol = (rank+1) *calculatedMax-newMaxRow*limitedCol;
 	// Distribution des pixels/elements qui ne sont pas couverts
-	distribution = rank/(size/(innerMatrixSize%size)) +1;//(rank+1)/(size/(innerMatrixSize%size)) + 1;
-	printf("Distribution %d\n",distribution);
+	distribution = (innerMatrixSize%size != 0) ? rank/(size/(innerMatrixSize%size)) +1 : 1;//(rank+1)/(size/(innerMatrixSize%size)) + 1;
 	newCurrCol+= distribution;
 	newMaxCol+= distribution;
 	newCurrRow++;
@@ -144,7 +143,11 @@ int main (int argc, char* argv[])
 	}
 	// Put variables
 	sizeExpand = newMaxRow - newCurrRow;
-	isExtended = (rank/(size/(innerMatrixSize%size)) != (rank+1)/(size/(innerMatrixSize%size))) ? 1 : 0;
+	isExtended = 0;
+	if(innerMatrixSize%size != 0)
+	{
+		isExtended = (rank/(size/(innerMatrixSize%size)) != (rank+1)/(size/(innerMatrixSize%size))) ? 1 : 0;
+	}
 	elementsToPush = calculatedMax + sizeExpand*2 + isExtended;
 
 	// Variables for the calculations
