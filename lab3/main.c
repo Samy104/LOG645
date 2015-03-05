@@ -127,10 +127,6 @@ int main (int argc, char* argv[])
 	}
 	if(rank == 3)
 	printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
-	
-	// Surrounding length and max for the MPI_Get
-	surroundingStart = newCurrRow-1;
-	surroundingLength = (newMaxRow-newCurrRow+3)*maxcol;
 
 	// Conversion from row/col to 1D Matrix
 	int startMatrix, endMatrix, elementMatrix, lastElement, sizeExpand, elementsToPush;
@@ -150,9 +146,13 @@ int main (int argc, char* argv[])
 	}
 	elementsToPush = calculatedMax + sizeExpand*2 + isExtended;
 
+	// Surrounding length and max for the MPI_Get
+	surroundingStart = newCurrRow-1;
+	surroundingLength = (newMaxRow-newCurrRow+3)*maxcol;
+
 	// Variables for the calculations
 	double tdh2 = (td/(h*h));
-	double invtdh2 = (1.0-tdh2*0.25);
+	double invtdh2 = (1.0-tdh2*4.0);
 
 	// Start time
 	double timeStart, timeEnd, Texec;
@@ -175,10 +175,10 @@ int main (int argc, char* argv[])
 				currentRow = row*maxcol;
 				nextRow = (row+1)*maxcol;
 
-				while(col < maxcol-1 && elementMatrix <= endMatrix)
+				while(col < colminun && elementMatrix <= endMatrix)
 				{
 					//spinWait(50);
-					newMatrix[elementMatrix] = rank;//invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+					newMatrix[elementMatrix] = invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
 					elementMatrix++;
 					col++;
 				}
@@ -194,7 +194,10 @@ int main (int argc, char* argv[])
 	{	// Start the alteration for RANK != 0
 		for(alteration = 1; alteration < deltat; alteration++)
 		{
-			MPI_Get(&(matrix[surroundingStart]), surroundingLength, MPI_DOUBLE, 0, surroundingStart, surroundingLength,MPI_DOUBLE, win);
+			MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
+			//MPI_Get(&(matrix[surroundingStart]), surroundingLength, MPI_DOUBLE, 0, surroundingStart, surroundingLength,MPI_DOUBLE, win);
+			MPI_Get(&(matrix[0]), matrixSize, MPI_DOUBLE, 0, 0, matrixSize,MPI_DOUBLE, win);
+			MPI_Win_unlock(0,win);
 			// Initialize elements for alteration
 			elementMatrix = startMatrix;
 			col = newCurrCol;
@@ -207,7 +210,7 @@ int main (int argc, char* argv[])
 				while(col < colminun && elementMatrix <= endMatrix)
 				{
 					//spinWait(50);
-					newMatrix[elementMatrix] = rank;//invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
+					newMatrix[elementMatrix] = invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
 					elementMatrix++;
 					col++;
 				}
@@ -221,7 +224,6 @@ int main (int argc, char* argv[])
 			MPI_Barrier(MPI_COMM_WORLD);
 		}
 	}
-
 
 	//End time
 	gettimeofday (&tp, NULL); // Fin du chronometre
