@@ -125,9 +125,7 @@ int main (int argc, char* argv[])
 		newMaxRow++;
 		newMaxCol = newMaxCol-colminun+1;
 	}
-	if(rank == 3)
-	printf("From Row: %d Col: %d To Row: %d Col: %d\n", newCurrRow, newCurrCol, newMaxRow, newMaxCol);
-
+	
 	// Conversion from row/col to 1D Matrix
 	int startMatrix, endMatrix, elementMatrix, lastElement, sizeExpand, elementsToPush;
 	startMatrix = newCurrRow*maxcol+newCurrCol;
@@ -163,7 +161,7 @@ int main (int argc, char* argv[])
 	// Start the alteration for RANK == 0
 	if(rank == 0)
 	{
-		for(alteration = 1; alteration < deltat; alteration++)
+		for(alteration = 0; alteration < deltat; alteration++)
 		{
 			// Initialize elements for alteration
 			elementMatrix = startMatrix;
@@ -177,7 +175,7 @@ int main (int argc, char* argv[])
 
 				while(col < colminun && elementMatrix <= endMatrix)
 				{
-					//spinWait(50);
+					spinWait(50);
 					newMatrix[elementMatrix] = invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
 					elementMatrix++;
 					col++;
@@ -192,7 +190,7 @@ int main (int argc, char* argv[])
 	}
 	else
 	{	// Start the alteration for RANK != 0
-		for(alteration = 1; alteration < deltat; alteration++)
+		for(alteration = 0; alteration < deltat; alteration++)
 		{
 			MPI_Win_lock(MPI_LOCK_SHARED,0,0,win);
 			//MPI_Get(&(matrix[surroundingStart]), surroundingLength, MPI_DOUBLE, 0, surroundingStart, surroundingLength,MPI_DOUBLE, win);
@@ -209,7 +207,7 @@ int main (int argc, char* argv[])
 				nextRow = (row+1)*maxcol;
 				while(col < colminun && elementMatrix <= endMatrix)
 				{
-					//spinWait(50);
+					spinWait(50);
 					newMatrix[elementMatrix] = invtdh2*matrix[currentRow+col] + tdh2 * (matrix[prevRow+col] + matrix[nextRow+col] + matrix[currentRow+col-1] + matrix[currentRow+col+1]);
 					elementMatrix++;
 					col++;
@@ -233,7 +231,7 @@ int main (int argc, char* argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 	if(rank == 0)
 	{
-		printMatrix();
+		//printMatrix();
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 
@@ -241,8 +239,8 @@ int main (int argc, char* argv[])
 	free(newMatrix);
 	//MPI_Free_mem(matrix);
 	//MPI_Free_mem(newMatrix);
-  	//MPI_Win_free(&win);
-  	//MPI_Win_free(&newwin);
+  	MPI_Win_free(&win);
+  	MPI_Win_free(&newwin);
 	MPI_Finalize();
 	return 0;
 }
