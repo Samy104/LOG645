@@ -1,5 +1,6 @@
 //
-// Created by secksx on 3/27/15.
+// Laboratoire sur OpenCL
+// Authors: Samy Lemcelli
 //
 
 #ifndef LAB4_MAIN_H
@@ -8,6 +9,9 @@
 #include <CL/cl.hpp>
 #include <stdio.h>
 #include <fstream>
+#include <iostream>
+#include <chrono>
+#include <cerrno>
 
 class lab4 {
 public:
@@ -29,7 +33,9 @@ private:
 	void InitCL();
 	void InitMatrices(double size);
 	void printMatrix();
-	int sequential();
+	float sequential(int matrixSize, int deltat, double td, double h);
+	float parallel(int matrixSize, int deltat, double td, double h);
+	std::string get_file_contents(const char *filename);
 };
 
 
