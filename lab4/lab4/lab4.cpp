@@ -167,8 +167,8 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	cl::Buffer matrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
 	cl::Buffer newMatrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
 	// Write to the buffers to the device
-	queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(int)*matrixSize, matrix);
-	queue.enqueueWriteBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(int)*matrixSize, newMatrix);
+	queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
+	queue.enqueueWriteBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
 
 	//Clear way to call the kernel and the parameters
 	cl::Kernel kernel_prog = cl::Kernel(program, "pixelCalculation");
@@ -179,8 +179,12 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	kernel_prog.setArg(4, deltat);
 	kernel_prog.setArg(5, tdh2);
 	kernel_prog.setArg(6, invtdh2);
-
-	queue.enqueueNDRangeKernel(kernel_prog, cl::NullRange, cl::NDRange(matrixSize), cl::NullRange);
+	int alteration = 0;
+	for (alteration = 0; alteration < deltat; alteration++)
+	{
+		queue.enqueueNDRangeKernel(kernel_prog, cl::NullRange, cl::NDRange(matrixSize), cl::NullRange);
+	}
+	
 	queue.finish();
 
 	// Final Matrix from the Device
@@ -232,10 +236,11 @@ int main(int argc, char **argv)
 
 	if (ENABLED_PAR == 1)
 	{
-		InitMatrices(matrixSize);
+		InitMatrices(matrixSize); // Reinitialize the matrices since the sequential part modified them.
 		acceleration = acceleration / parallel(maxrow, maxcol, deltat, td, h);
 	}
 
+	// Acceleration = TSequential / TParallel
 	printf("The acceleration is %f \n", acceleration);
 
 	std::cin >> deltat;
