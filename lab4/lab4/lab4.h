@@ -33,8 +33,8 @@ private:
 	void InitCL();
 	void InitMatrices(double size);
 	void printMatrix();
-	float sequential(int matrixSize, int deltat, double td, double h);
-	float parallel(int matrixSize, int deltat, double td, double h);
+	float sequential(int maxrow, int maxcol, int deltat, double td, double h);
+	float parallel(int maxrow, int maxcol, int deltat, double td, double h);
 	std::string get_file_contents(const char *filename);
 };
 

@@ -94,23 +94,46 @@ std::string get_file_contents(const char *filename)
 	throw(errno);
 }
 
-float sequential(int matrixSize, int deltat, double td, double h)
+float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 {
 	typedef std::chrono::high_resolution_clock Clock;
 	printf("\nStarting the sequential code: \n");
 	auto timeStart = Clock::now();
 
+	int alteration, 
+		currentRow, prevRow, nextRow,
+		row, col;
+	int matrixSize = maxrow*maxcol;
+
+	double tdh2 = (td / (h*h));
+	double invtdh2 = (1.0 - tdh2*4.0);
+	// Start the alteration
+	for (alteration = 0; alteration < deltat; alteration++)
+	{
+		// Start calulations
+		for (row = 1; row < (maxrow - 1); row++)
+		{
+			prevRow = (row - 1)*maxcol;
+			currentRow = row*maxcol;
+			nextRow = (row + 1)*maxcol;
+
+			for (col = 1; col < (maxcol - 1); col++)
+			{
+				newMatrix[currentRow + col] = invtdh2*matrix[currentRow + col] + tdh2 * (matrix[prevRow + col] + matrix[nextRow + col] + matrix[currentRow + col - 1] + matrix[currentRow + col + 1]);
+			}
+		}
+		memcpy(matrix, newMatrix, matrixSize * sizeof(double));
+	}
 
 	printf("Final Matrix Sequential: \n");
 	printMatrix();
-
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
 	printf("Ending the sequential code.\nEnded in %.2f ms \n", duration);
 	return duration;
 }
 
-float parallel(int matrixSize, int deltat, double td, double h)
+float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 {
 	printf("\nStarting the parralel code: \n");
 	InitCL();
@@ -120,7 +143,7 @@ float parallel(int matrixSize, int deltat, double td, double h)
 	// Get the kernel code from the file
 	kernel_code = get_file_contents("main.cl");
 	sources.push_back({ kernel_code.c_str(), kernel_code.length() });
-	printf("Kernel code %s\n", kernel_code);
+	//printf("Kernel code %s\n", kernel_code);
 
 	// Check if the kernel program compiled.
 	cl::Program program(context, sources);
@@ -135,6 +158,7 @@ float parallel(int matrixSize, int deltat, double td, double h)
 
 	double tdh2 = (td / (h*h));
 	double invtdh2 = (1.0 - tdh2*4.0);
+	int matrixSize = maxrow*maxcol;
 
 	//create queue to which we will push commands for the device.
 	cl::CommandQueue queue(context, device);
@@ -203,16 +227,16 @@ int main(int argc, char **argv)
 
 	if (ENABLED_SEQ == 1)
 	{
-		acceleration = sequential(matrixSize, deltat, td, h);
+		acceleration = sequential(maxrow, maxcol, deltat, td, h);
 	}
 
 	if (ENABLED_PAR == 1)
 	{
 		InitMatrices(matrixSize);
-		acceleration = acceleration / parallel(matrixSize, deltat, td, h);
+		acceleration = acceleration / parallel(maxrow, maxcol, deltat, td, h);
 	}
 
-	printf("The acceleration is %f ms \n", acceleration);
+	printf("The acceleration is %f \n", acceleration);
 
 	std::cin >> deltat;
 	return 1;
