@@ -6,7 +6,7 @@
 #ifndef LAB4_MAIN_H
 #define LAB4_MAIN_H
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS // Should fix this later
-#include <CL/cl.hpp>
+#include "cl.hpp"
 #include <stdio.h>
 #include <fstream>
 #include <iostream>

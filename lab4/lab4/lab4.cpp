@@ -79,20 +79,47 @@ void printMatrix()
 	printf("-------------------------------------------------------------------\n");
 }
 
-std::string get_file_contents(const char *filename)
+//////////////////////////////////////////////////////////////////////////////
+//! Loads a Program file and prepends the cPreamble to the code.
+//!
+//! @return the source string if succeeded, 0 otherwise
+//! @param cFilename program filename
+//! @param cPreamble code that is prepended to the loaded file, typically a set of
+//! @param szFinalLength returned length of the code string
+//////////////////////////////////////////////////////////////////////////////
+char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t*
+	szFinalLength)
 {
-	std::ifstream in(filename, std::ios::in | std::ios::binary);
-	if (in)
+	// locals
+	FILE* pFileStream = NULL;
+	size_t szSourceLength;
+	// open the OpenCL source code file
+	if (fopen_s(&pFileStream, cFilename, "rb") != 0)
 	{
-		std::string contents;
-		in.seekg(0, std::ios::end);
-		contents.resize(in.tellg());
-		in.seekg(0, std::ios::beg);
-		in.read(&contents[0], contents.size());
-		in.close();
-		return(contents);
+		return NULL;
 	}
-	throw(errno);
+	size_t szPreambleLength = strlen(cPreamble);
+	// get the length of the source code
+	fseek(pFileStream, 0, SEEK_END);
+	szSourceLength = ftell(pFileStream);
+	fseek(pFileStream, 0, SEEK_SET);
+	// allocate a buffer for the source code string and read it in
+	char* cSourceString = (char *)malloc(szSourceLength + szPreambleLength + 1);
+	memcpy(cSourceString, cPreamble, szPreambleLength);
+	if (fread((cSourceString)+szPreambleLength, szSourceLength, 1, pFileStream) != 1)
+	{
+		fclose(pFileStream);
+		free(cSourceString);
+		return 0;
+	}
+	// close the file and return the total length of the combined (preamble + source)string
+	fclose(pFileStream);
+	if (szFinalLength != 0)
+	{
+		*szFinalLength = szSourceLength + szPreambleLength;
+	}
+	cSourceString[szSourceLength + szPreambleLength] = '\0';
+	return cSourceString;
 }
 
 float sequential(int maxrow, int maxcol, int deltat, double td, double h)
@@ -142,7 +169,8 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	cl::Program::Sources sources;
 
 	// Get the kernel code from the file
-	kernel_code = get_file_contents("main.cl");
+	size_t kernelCodeSize = 0;
+	kernel_code = oclLoadProgSource("main.cl", "", &kernelCodeSize);
 	sources.push_back({ kernel_code.c_str(), kernel_code.length() });
 	//printf("Kernel code %s\n", kernel_code);
 
