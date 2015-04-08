@@ -127,7 +127,7 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 	}
 
 	printf("Final Matrix Sequential: \n");
-	printMatrix();
+	//printMatrix();
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
 	printf("Ending the sequential code.\nEnded in %.2f ms \n", duration);
@@ -167,6 +167,7 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	// Create the buffers on the device
 	cl::Buffer matrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
 	cl::Buffer newMatrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
+	cl::Buffer booleanSwitchBuffer(context, CL_MEM_READ_WRITE, sizeof(int));
 	// Write to the buffers to the device
 	queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
 	queue.enqueueWriteBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
@@ -180,23 +181,32 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	kernel_prog.setArg(4, deltat);
 	kernel_prog.setArg(5, tdh2);
 	kernel_prog.setArg(6, invtdh2);
+	kernel_prog.setArg(7, booleanSwitchBuffer);
 	int alteration = 0;
-
+	int modulo = 0; // Used to alterate between buffers to save writes
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
+		modulo = alteration % 2;
+		queue.enqueueWriteBuffer(booleanSwitchBuffer, CL_TRUE, 0, sizeof(int), &modulo);
 		queue.enqueueNDRangeKernel(kernel_prog, cl::NullRange, cl::NDRange(matrixSize), cl::NullRange);
+	}
 
-		queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
-		queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
+	if (modulo == 0)
+	{
+		queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
+	}
+	else
+	{
+		queue.enqueueReadBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
 	}
 	
 	queue.finish();
 
 	// Final Matrix from the Device
-	queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
+	
 
 	printf("Final Matrix Parrallel: \n");
-	printMatrix();
+	//printMatrix();
 
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
@@ -232,7 +242,7 @@ int main(int argc, char **argv)
 	InitMatrices(matrixSize);
 
 	printf("Initial Matrix\n");
-	printMatrix();
+	//printMatrix();
 
 	if (ENABLED_SEQ == 1)
 	{
