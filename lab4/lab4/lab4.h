@@ -5,8 +5,7 @@
 
 #ifndef LAB4_MAIN_H
 #define LAB4_MAIN_H
-#define CL_USE_DEPRECATED_OPENCL_2_0_APIS // Should fix this later
-#include "cl.hpp"
+#include <CL/cl.h>
 #include <stdio.h>
 #include <fstream>
 #include <iostream>
@@ -23,12 +22,15 @@ private:
 	int deltat;
 	double *matrix;
 	double *newMatrix;
-
-	std::vector<cl::Platform> all_platforms;
-	std::vector<cl::Device> all_devices;
-	cl::Platform platform;
-	cl::Device device;
-	std::string kernel_code;
+	cl_device_id *device_id = NULL;
+	cl_context context = NULL;
+	cl_command_queue command_queue = NULL;
+	cl_program program = NULL;
+	cl_kernel kernel = NULL;
+	cl_platform_id platform_id = NULL;
+	cl_uint deviceNum = 0;
+	cl_uint platformNum = 0;
+	cl_int status = 0;
 	// Functions
 	void InitCL();
 	void InitMatrices(double size);
