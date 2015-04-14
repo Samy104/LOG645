@@ -40,7 +40,7 @@ void InitCL()
 
 	//Find the correct device id
 	cl_int index = 0;
-	while (index < platformNum)
+	while (index < (int)platformNum)
 	{
 		status = clGetDeviceIDs(platforms[index], CL_DEVICE_TYPE_GPU, 0, NULL, &deviceNum);
 		if (status == CL_SUCCESS){
@@ -83,7 +83,7 @@ void InitMatrices(int size)
 		currentRow = row*maxcol;
 		for (col = 0; col < maxcol; col++)
 		{
-			matrix[currentRow + col] = row*(maxrow - row - 1) * col*(maxcol - col - 1);
+			matrix[currentRow + col] = (float)row*(maxrow - row - 1) * col*(maxcol - col - 1);
 		}
 	}
 	newMatrix = (float*)calloc(size, sizeof(float));
@@ -160,8 +160,8 @@ float sequential(int maxrow, int maxcol, int deltat, float td, float h)
 		row, col;
 	int matrixSize = maxrow*maxcol;
 
-	float tdh2 = (td / (h*h));
-	float invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (float)(td / (h*h));
+	float invtdh2 = (float)(1.0 - tdh2*4.0);
 	// Start the alteration
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
@@ -192,7 +192,7 @@ float parallel(int maxrow, int maxcol, int deltat, float td, float h)
 {
 	printf("\nStarting the parralel code: \n");
 	InitCL();
-	context = clCreateContext(NULL, 1, device_id, NULL, NULL, &status);
+	context = clCreateContext(NULL, 2, device_id, NULL, NULL, &status);
 
 	// Get the kernel code from the file
 	size_t kernelCodeSize = 0;
@@ -201,7 +201,7 @@ float parallel(int maxrow, int maxcol, int deltat, float td, float h)
 	// Check if the kernel program compiled.
 	program = clCreateProgramWithSource(context, 1, (const char **)&kernel_code,
 		&kernelCodeSize, &status);
-	status = clBuildProgram(program, 1, device_id, NULL, NULL, NULL);
+	status = clBuildProgram(program, 2, device_id, NULL, NULL, NULL);
 	if (status != CL_SUCCESS){
 		printf("Program build returned the following error %d.\nPreventing the execution of the parallel code.", status);
 		return 0;
@@ -211,8 +211,8 @@ float parallel(int maxrow, int maxcol, int deltat, float td, float h)
 	typedef std::chrono::high_resolution_clock Clock;
 	auto timeStart = Clock::now();
 
-	float tdh2 = (td / (h*h));
-	float invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (float)(td / (h*h));
+	float invtdh2 = (float)(1.0 - tdh2*4.0);
 	int matrixSize = maxrow*maxcol;
 	threadMap = matrixSize;
 
@@ -302,8 +302,8 @@ int main(int argc, char **argv)
 	maxrow = atoi(argv[1]);
 	maxcol = atoi(argv[2]);
 	deltat = atoi(argv[3]);
-	td = atof(argv[4]);
-	h = atof(argv[5]);
+	td = (float)atof(argv[4]);
+	h = (float)atof(argv[5]);
 	matrixSize = maxrow*maxcol;
 
 	InitMatrices(matrixSize);

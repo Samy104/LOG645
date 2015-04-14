@@ -5,6 +5,7 @@
 
 #ifndef LAB4_MAIN_H
 #define LAB4_MAIN_H
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS // Only used for AMD!
 #include <CL/cl.h>
 #include <stdio.h>
 #include <fstream>
@@ -37,7 +38,8 @@ private:
 	void printMatrix();
 	float sequential(int maxrow, int maxcol, int deltat, float td, float h);
 	float parallel(int maxrow, int maxcol, int deltat, float td, float h);
-	std::string get_file_contents(const char *filename);
+	char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t*
+		szFinalLength);
 };
 
 
