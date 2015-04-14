@@ -21,13 +21,13 @@ cl_uint deviceNum = 0;
 cl_uint platformNum = 0;
 cl_int status = 0;
 std::string kernel_code = "";
-size_t threadMap;
+size_t threadMap = 0;
 
 int maxrow = 0;
 int maxcol = 0;
 
-double *matrix;
-double *newMatrix;
+float *matrix;
+float *newMatrix;
 
 void InitCL()
 {
@@ -77,7 +77,7 @@ void InitMatrices(int size)
 {
 	int row, col, currentRow;
 	// Initialise the matrix
-	matrix = (double*)calloc(size, sizeof(double));
+	matrix = (float*)calloc(size, sizeof(float));
 	for (row = 0; row < maxrow; row++)
 	{
 		currentRow = row*maxcol;
@@ -86,8 +86,8 @@ void InitMatrices(int size)
 			matrix[currentRow + col] = row*(maxrow - row - 1) * col*(maxcol - col - 1);
 		}
 	}
-	newMatrix = (double*)calloc(size, sizeof(double));
-	memcpy(newMatrix, matrix, size * sizeof(double));
+	newMatrix = (float*)calloc(size, sizeof(float));
+	memcpy(newMatrix, matrix, size * sizeof(float));
 }
 
 void printMatrix()
@@ -149,7 +149,7 @@ char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t*
 	return cSourceString;
 }
 
-float sequential(int maxrow, int maxcol, int deltat, double td, double h)
+float sequential(int maxrow, int maxcol, int deltat, float td, float h)
 {
 	typedef std::chrono::high_resolution_clock Clock;
 	printf("\nStarting the sequential code: \n");
@@ -160,8 +160,8 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 		row, col;
 	int matrixSize = maxrow*maxcol;
 
-	double tdh2 = (td / (h*h));
-	double invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (td / (h*h));
+	float invtdh2 = (1.0 - tdh2*4.0);
 	// Start the alteration
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
@@ -177,7 +177,7 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 				newMatrix[currentRow + col] = invtdh2*matrix[currentRow + col] + tdh2 * (matrix[prevRow + col] + matrix[nextRow + col] + matrix[currentRow + col - 1] + matrix[currentRow + col + 1]);
 			}
 		}
-		memcpy(matrix, newMatrix, matrixSize * sizeof(double));
+		memcpy(matrix, newMatrix, matrixSize * sizeof(float));
 	}
 
 	printf("Final Matrix Sequential: \n");
@@ -188,7 +188,7 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 	return duration;
 }
 
-float parallel(int maxrow, int maxcol, int deltat, double td, double h)
+float parallel(int maxrow, int maxcol, int deltat, float td, float h)
 {
 	printf("\nStarting the parralel code: \n");
 	InitCL();
@@ -197,13 +197,13 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	// Get the kernel code from the file
 	size_t kernelCodeSize = 0;
 	kernel_code = oclLoadProgSource("main.cl", "", &kernelCodeSize);
-	//printf("Kernel code %s\n", kernel_code);
 
 	// Check if the kernel program compiled.
 	program = clCreateProgramWithSource(context, 1, (const char **)&kernel_code,
-		(const size_t *)&kernelCodeSize, &status);
-	if (clBuildProgram(program, 1, device_id, NULL, NULL, NULL) != CL_SUCCESS){
-		//printf("Program build returned the following error %s\n", clGetProgramBuildInfo(program, *device_id, ));
+		&kernelCodeSize, &status);
+	status = clBuildProgram(program, 1, device_id, NULL, NULL, NULL);
+	if (status != CL_SUCCESS){
+		printf("Program build returned the following error %d.\nPreventing the execution of the parallel code.", status);
 		return 0;
 	}
 
@@ -211,23 +211,24 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	typedef std::chrono::high_resolution_clock Clock;
 	auto timeStart = Clock::now();
 
-	double tdh2 = (td / (h*h));
-	double invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (td / (h*h));
+	float invtdh2 = (1.0 - tdh2*4.0);
 	int matrixSize = maxrow*maxcol;
+	threadMap = matrixSize;
 
 	//create queue to which we will push commands for the device.
 	command_queue = clCreateCommandQueue(context, *device_id, 0, &status);
 
 	// Create the buffers on the device
 	
-	cl_mem matrixBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize,NULL,&status);
-	cl_mem newMatrixBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize,NULL, &status);
+	cl_mem matrixBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*matrixSize, NULL, &status);
+	cl_mem newMatrixBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*matrixSize, NULL, &status);
 	cl_mem booleanSwitchBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int), NULL, &status);
 	// Write to the buffers to the device
 	status = clEnqueueWriteBuffer(command_queue, matrixBuffer, CL_TRUE, 0,
-		sizeof(double)*matrixSize, matrix, 0, NULL, NULL);
+		sizeof(float)*matrixSize, matrix, 0, NULL, NULL);
 	status = clEnqueueWriteBuffer(command_queue, newMatrixBuffer, CL_TRUE, 0,
-		sizeof(double)*matrixSize, newMatrix, 0, NULL, NULL);
+		sizeof(float)*matrixSize, newMatrix, 0, NULL, NULL);
 
 	//Clear way to call the kernel and the parameters
 	kernel = clCreateKernel(program, "pixelCalculation", &status);
@@ -253,12 +254,17 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	if (modulo == 0)
 	{
 		status = clEnqueueReadBuffer(command_queue, newMatrixBuffer, CL_TRUE, 0,
-			sizeof(double)*matrixSize, &newMatrix, 0, NULL, NULL);
+			sizeof(float)*matrixSize, newMatrix, 0, NULL, NULL);
 	}
 	else
 	{
 		status = clEnqueueReadBuffer(command_queue, matrixBuffer, CL_TRUE, 0,
-			sizeof(double)*matrixSize, &newMatrix, 0, NULL, NULL);
+			sizeof(float)*matrixSize, newMatrix, 0, NULL, NULL);
+	}
+
+	if (status != CL_SUCCESS)
+	{
+		printf("Lecture of the GPU buffer error #%d\n", status);
 	}
 	
 	status = clFinish(command_queue);
@@ -271,7 +277,7 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
-	printf("Ending the parralel code. \nEnded in %.2f ms \n", duration);
+	printf("Ending the parralel code.\nEnded in %.2f ms \n", duration);
 
 	return duration;
 }
@@ -280,10 +286,10 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 int main(int argc, char **argv)
 {
 	int deltat = 0;
-	double td = 0.0;
-	double h = 0.0;
+	float td = 0.0;
+	float h = 0.0;
 	int matrixSize = 0;
-	double acceleration = 0.0;
+	float acceleration = 0.0;
 
 	//Initialisation des param
 	if (argc != 6)
@@ -324,6 +330,12 @@ int main(int argc, char **argv)
 	// Free the memory
 	free(matrix);
 	free(newMatrix);
+
+	status = clFlush(command_queue);
+	status = clReleaseKernel(kernel);
+	status = clReleaseProgram(program);
+	status = clReleaseCommandQueue(command_queue);
+	status = clReleaseContext(context);
 
 	// Program done. Can we have 100% on this lab ;)
 	return 1;

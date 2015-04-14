@@ -1,11 +1,11 @@
-void kernel pixelCalculation(global double* matrix, 
-							global double* newMatrix, 
+void kernel pixelCalculation(__global float* matrix, 
+							__global float* newMatrix, 
 							const int maxrow, 
 							const int maxcol, 
 							const int deltat, 
-							const double tdh2, 
-							const double invtdh2,
-							global int* modulo)
+							const float tdh2, 
+							const float invtdh2,
+							__global int* modulo)
 {
 	const int idx = get_global_id(0);
 

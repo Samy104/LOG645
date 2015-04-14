@@ -20,8 +20,8 @@ private:
 	int maxrow;
 	int maxcol;
 	int deltat;
-	double *matrix;
-	double *newMatrix;
+	float *matrix;
+	float *newMatrix;
 	cl_device_id *device_id = NULL;
 	cl_context context = NULL;
 	cl_command_queue command_queue = NULL;
@@ -33,10 +33,10 @@ private:
 	cl_int status = 0;
 	// Functions
 	void InitCL();
-	void InitMatrices(double size);
+	void InitMatrices(float size);
 	void printMatrix();
-	float sequential(int maxrow, int maxcol, int deltat, double td, double h);
-	float parallel(int maxrow, int maxcol, int deltat, double td, double h);
+	float sequential(int maxrow, int maxcol, int deltat, float td, float h);
+	float parallel(int maxrow, int maxcol, int deltat, float td, float h);
 	std::string get_file_contents(const char *filename);
 };
 
