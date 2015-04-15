@@ -21,8 +21,8 @@ private:
 	int maxrow;
 	int maxcol;
 	int deltat;
-	double *matrix;
-	double *newMatrix;
+	float *matrix;
+	float *newMatrix;
 
 	std::vector<cl::Platform> all_platforms;
 	std::vector<cl::Device> all_devices;
@@ -31,10 +31,10 @@ private:
 	std::string kernel_code;
 	// Functions
 	void InitCL();
-	void InitMatrices(double size);
+	void InitMatrices(float size);
 	void printMatrix();
-	float sequential(int maxrow, int maxcol, int deltat, double td, double h);
-	float parallel(int maxrow, int maxcol, int deltat, double td, double h);
+	float sequential(int maxrow, int maxcol, int deltat, float td, float h);
+	float parallel(int maxrow, int maxcol, int deltat, float td, float h);
 	std::string get_file_contents(const char *filename);
 };
 

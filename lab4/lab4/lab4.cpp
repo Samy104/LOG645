@@ -21,8 +21,8 @@ std::string kernel_code;
 int maxrow = 0;
 int maxcol = 0;
 
-double *matrix;
-double *newMatrix;
+float *matrix;
+float *newMatrix;
 
 void InitCL()
 {
@@ -49,17 +49,17 @@ void InitMatrices(int size)
 {
 	int row, col, currentRow;
 	// Initialise the matrix
-	matrix = (double*)calloc(size, sizeof(double));
+	matrix = (float*)calloc(size, sizeof(float));
 	for (row = 0; row < maxrow; row++)
 	{
 		currentRow = row*maxcol;
 		for (col = 0; col < maxcol; col++)
 		{
-			matrix[currentRow + col] = row*(maxrow - row - 1) * col*(maxcol - col - 1);
+			matrix[currentRow + col] = (float)row*(maxrow - row - 1) * col*(maxcol - col - 1);
 		}
 	}
-	newMatrix = (double*)calloc(size, sizeof(double));
-	memcpy(newMatrix, matrix, size * sizeof(double));
+	newMatrix = (float*)calloc(size, sizeof(float));
+	memcpy(newMatrix, matrix, size * sizeof(float));
 }
 
 void printMatrix()
@@ -94,7 +94,7 @@ std::string get_file_contents(const char *filename)
 	throw(errno);
 }
 
-float sequential(int maxrow, int maxcol, int deltat, double td, double h)
+float sequential(int maxrow, int maxcol, int deltat, float td, float h)
 {
 	typedef std::chrono::high_resolution_clock Clock;
 	printf("\nStarting the sequential code: \n");
@@ -105,8 +105,8 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 		row, col;
 	int matrixSize = maxrow*maxcol;
 
-	double tdh2 = (td / (h*h));
-	double invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (float)(td / (h*h));
+	float invtdh2 = (float)(1.0 - tdh2*4.0);
 	// Start the alteration
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
@@ -122,18 +122,18 @@ float sequential(int maxrow, int maxcol, int deltat, double td, double h)
 				newMatrix[currentRow + col] = invtdh2*matrix[currentRow + col] + tdh2 * (matrix[prevRow + col] + matrix[nextRow + col] + matrix[currentRow + col - 1] + matrix[currentRow + col + 1]);
 			}
 		}
-		memcpy(matrix, newMatrix, matrixSize * sizeof(double));
+		memcpy(matrix, newMatrix, matrixSize * sizeof(float));
 	}
 
 	printf("Final Matrix Sequential: \n");
-	printMatrix();
+	//printMatrix();
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
 	printf("Ending the sequential code.\nEnded in %.2f ms \n", duration);
 	return duration;
 }
 
-float parallel(int maxrow, int maxcol, int deltat, double td, double h)
+float parallel(int maxrow, int maxcol, int deltat, float td, float h)
 {
 	printf("\nStarting the parralel code: \n");
 	InitCL();
@@ -156,19 +156,20 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	typedef std::chrono::high_resolution_clock Clock;
 	auto timeStart = Clock::now();
 
-	double tdh2 = (td / (h*h));
-	double invtdh2 = (1.0 - tdh2*4.0);
+	float tdh2 = (float)(td / (h*h));
+	float invtdh2 = (float)(1.0 - tdh2*4.0);
 	int matrixSize = maxrow*maxcol;
 
 	//create queue to which we will push commands for the device.
 	cl::CommandQueue queue(context, device);
 
 	// Create the buffers on the device
-	cl::Buffer matrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
-	cl::Buffer newMatrixBuffer(context, CL_MEM_READ_WRITE, sizeof(double)*matrixSize);
+	cl::Buffer matrixBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*matrixSize);
+	cl::Buffer newMatrixBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*matrixSize);
+	cl::Buffer offset(context, CL_MEM_READ_WRITE, sizeof(int));
 	// Write to the buffers to the device
-	queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
-	queue.enqueueWriteBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
+	queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(float)*matrixSize, matrix);
+	queue.enqueueWriteBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(float)*matrixSize, newMatrix);
 
 	//Clear way to call the kernel and the parameters
 	cl::Kernel kernel_prog = cl::Kernel(program, "pixelCalculation");
@@ -180,18 +181,29 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	kernel_prog.setArg(5, tdh2);
 	kernel_prog.setArg(6, invtdh2);
 	int alteration = 0;
+	int modulo = 0; // Used to alterate between buffers to save writes
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
+		modulo = alteration % 2;
+		queue.enqueueWriteBuffer(offset, CL_TRUE, 0, sizeof(int), &modulo);
 		queue.enqueueNDRangeKernel(kernel_prog, cl::NullRange, cl::NDRange(matrixSize), cl::NullRange);
 	}
 	
 	queue.finish();
 
 	// Final Matrix from the Device
-	queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, newMatrix);
+	if (modulo == 0)
+	{
+		queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(float)*matrixSize, newMatrix);
+	}
+	else
+	{
+		queue.enqueueReadBuffer(matrixBuffer, CL_TRUE, 0, sizeof(float)*matrixSize, newMatrix);
+	}
+	
 
 	printf("Final Matrix Parrallel: \n");
-	printMatrix();
+	//printMatrix();
 
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
@@ -203,8 +215,8 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 int main(int argc, char **argv)
 {
 	int deltat = 0;
-	double td = 0.0;
-	double h = 0.0;
+	float td = 0.0;
+	float h = 0.0;
 	int matrixSize = 0;
 
 	//Initialisation des param
@@ -218,16 +230,16 @@ int main(int argc, char **argv)
 	maxrow = atoi(argv[1]);
 	maxcol = atoi(argv[2]);
 	deltat = atoi(argv[3]);
-	td = atof(argv[4]);
-	h = atof(argv[5]);
+	td = (float)atof(argv[4]);
+	h = (float)atof(argv[5]);
 	matrixSize = maxrow*maxcol;
 
 	InitMatrices(matrixSize);
 
-	double acceleration = 0.0;
+	float acceleration = 0.0;
 
 	printf("Initial Matrix\n");
-	printMatrix();
+	//printMatrix();
 
 	if (ENABLED_SEQ == 1)
 	{
