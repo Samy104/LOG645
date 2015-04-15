@@ -17,7 +17,6 @@ std::vector<cl::Device> all_devices;
 cl::Platform platform;
 cl::Device device;
 std::string kernel_code;
-cl_uint status;
 
 int maxrow = 0;
 int maxcol = 0;
@@ -181,13 +180,9 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	kernel_prog.setArg(5, tdh2);
 	kernel_prog.setArg(6, invtdh2);
 	int alteration = 0;
-
 	for (alteration = 0; alteration < deltat; alteration++)
 	{
 		queue.enqueueNDRangeKernel(kernel_prog, cl::NullRange, cl::NDRange(matrixSize), cl::NullRange);
-
-		queue.enqueueReadBuffer(newMatrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
-		queue.enqueueWriteBuffer(matrixBuffer, CL_TRUE, 0, sizeof(double)*matrixSize, matrix);
 	}
 	
 	queue.finish();
@@ -201,7 +196,6 @@ float parallel(int maxrow, int maxcol, int deltat, double td, double h)
 	auto timeEnd = Clock::now();
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
 	printf("Ending the parralel code. \nEnded in %.2f ms \n", duration);
-
 	return duration;
 }
 
@@ -212,7 +206,6 @@ int main(int argc, char **argv)
 	double td = 0.0;
 	double h = 0.0;
 	int matrixSize = 0;
-	double acceleration = 0.0;
 
 	//Initialisation des param
 	if (argc != 6)
@@ -230,6 +223,8 @@ int main(int argc, char **argv)
 	matrixSize = maxrow*maxcol;
 
 	InitMatrices(matrixSize);
+
+	double acceleration = 0.0;
 
 	printf("Initial Matrix\n");
 	printMatrix();
@@ -249,11 +244,5 @@ int main(int argc, char **argv)
 	printf("The acceleration is %f \n", acceleration);
 
 	std::cin >> deltat;
-
-	// Free the memory
-	free(matrix);
-	free(newMatrix);
-
-	// Program done. Can we have 100% on this lab ;)
 	return 1;
 }
