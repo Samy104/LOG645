@@ -1,0 +1,1 @@
+mpirun -hostfile hostfile -np $6 ./main $1 $2 $3 $4 $5
